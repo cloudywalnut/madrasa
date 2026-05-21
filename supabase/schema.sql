@@ -1,5 +1,6 @@
 -- Madrasa LMS - Database Schema
 -- Run this in your Supabase SQL Editor to initialize the database.
+-- This script is idempotent (safe to re-run).
 
 -- ─────────────────────────────────────────────
 -- Tables
@@ -64,6 +65,17 @@ CREATE TABLE IF NOT EXISTS student_answers (
   UNIQUE(submission_id, question_id)
 );
 
+-- class_enrollments: tracks which students are enrolled in which classes.
+-- student_email is stored here so the teacher can display it without Auth Admin API access.
+CREATE TABLE IF NOT EXISTS class_enrollments (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  class_id      UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+  student_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  student_email TEXT NOT NULL,
+  enrolled_at   TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(class_id, student_id)
+);
+
 -- ─────────────────────────────────────────────
 -- Row-Level Security (permissive for prototype)
 -- ─────────────────────────────────────────────
@@ -74,10 +86,35 @@ ALTER TABLE tasks               ENABLE ROW LEVEL SECURITY;
 ALTER TABLE questions           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE student_submissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE student_answers     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE class_enrollments   ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "allow_all_classes"             ON classes             FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "allow_all_subjects"            ON subjects            FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "allow_all_tasks"               ON tasks               FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "allow_all_questions"           ON questions           FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "allow_all_student_submissions" ON student_submissions FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "allow_all_student_answers"     ON student_answers     FOR ALL USING (true) WITH CHECK (true);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='classes' AND policyname='allow_all_classes') THEN
+    CREATE POLICY allow_all_classes ON classes FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='subjects' AND policyname='allow_all_subjects') THEN
+    CREATE POLICY allow_all_subjects ON subjects FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='tasks' AND policyname='allow_all_tasks') THEN
+    CREATE POLICY allow_all_tasks ON tasks FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='questions' AND policyname='allow_all_questions') THEN
+    CREATE POLICY allow_all_questions ON questions FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='student_submissions' AND policyname='allow_all_student_submissions') THEN
+    CREATE POLICY allow_all_student_submissions ON student_submissions FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='student_answers' AND policyname='allow_all_student_answers') THEN
+    CREATE POLICY allow_all_student_answers ON student_answers FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='class_enrollments' AND policyname='allow_all_class_enrollments') THEN
+    CREATE POLICY allow_all_class_enrollments ON class_enrollments FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+END $$;
+
+-- ─────────────────────────────────────────────
+-- If schema was already run without class_enrollments, run this:
+-- (Safe to run even if table already exists due to IF NOT EXISTS above)
+-- ─────────────────────────────────────────────
+-- CREATE TABLE IF NOT EXISTS class_enrollments ... (already above)
+-- ALTER TABLE class_enrollments ENABLE ROW LEVEL SECURITY; (already above)

@@ -5,9 +5,11 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase, STUDENT_ID } from "@/lib/supabase";
 import { Class, Subject, Task, StudentSubmission } from "@/lib/types";
+import { isArabic } from "@/lib/arabic";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 import Badge from "@/components/ui/Badge";
+import Loader from "@/components/ui/Loader";
 
 export default function StudentSubjectPage() {
   const { classId, subjectId } = useParams<{ classId: string; subjectId: string }>();
@@ -21,7 +23,7 @@ export default function StudentSubjectPage() {
     Promise.all([
       supabase.from("classes").select("*").eq("id", classId).single(),
       supabase.from("subjects").select("*").eq("id", subjectId).single(),
-      supabase.from("tasks").select("*").eq("subject_id", subjectId).order("created_at", { ascending: false }),
+      supabase.from("tasks").select("*").eq("subject_id", subjectId).order("submission_date"),
     ]).then(async ([{ data: c }, { data: s }, { data: t }]) => {
       setCls(c);
       setSubject(s);
@@ -40,7 +42,7 @@ export default function StudentSubjectPage() {
     });
   }, [classId, subjectId]);
 
-  if (loading) return <div style={{ padding: "4rem", textAlign: "center", color: "var(--color-muted)", fontFamily: "var(--font-body)", fontStyle: "italic" }}>Loading…</div>;
+  if (loading) return <Loader />;
   if (!subject) return null;
 
   return (
@@ -55,18 +57,19 @@ export default function StudentSubjectPage() {
         ]}
       />
 
-      <div className="flex items-center gap-2 mb-6">
+      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.5rem" }}>
         <Badge variant="blue">{tasks.length} Task{tasks.length !== 1 ? "s" : ""}</Badge>
       </div>
 
       {tasks.length === 0 ? (
         <EmptyState title="No tasks yet" description="Your teacher hasn't created any tasks for this subject yet." />
       ) : (
-        <div className="flex flex-col gap-4">
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           {tasks.map((task, i) => {
             const submission = submissions.find((s) => s.task_id === task.id);
             const completed = submission?.completed ?? false;
             const overdue = new Date(task.submission_date) < new Date() && !completed;
+            const arabicTitle = isArabic(task.title);
 
             return (
               <div
@@ -74,46 +77,69 @@ export default function StudentSubjectPage() {
                 className="madrasa-card animate-fade-in-up overflow-hidden"
                 style={{ animationDelay: `${i * 0.06}s`, padding: 0 }}
               >
-                <div className="flex flex-col sm:flex-row">
+                <div style={{ display: "flex" }}>
+                  {/* Status colour bar */}
                   <div
                     style={{
                       width: "4px",
+                      flexShrink: 0,
                       background: completed
                         ? "#16A34A"
                         : overdue
                         ? "#DC2626"
                         : "linear-gradient(180deg, var(--color-gold), var(--color-gold-pale))",
-                      flexShrink: 0,
                     }}
                   />
-                  <div style={{ flex: 1, padding: "1rem 1.25rem" }}>
-                    <div className="flex flex-wrap items-start gap-2 mb-1">
-                      <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "0.9375rem", color: "var(--color-navy)", flex: 1 }}>
-                        {task.title}
-                      </h3>
-                      {completed ? (
-                        <Badge variant="green">
-                          ✓ Done — {submission!.score}/{submission!.total_questions}
-                        </Badge>
-                      ) : overdue ? (
-                        <Badge variant="red">Overdue</Badge>
-                      ) : (
-                        <Badge variant="gold">
-                          Due {new Date(task.submission_date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                        </Badge>
-                      )}
-                    </div>
+
+                  {/* Task info */}
+                  <div style={{ flex: 1, padding: "1rem 1.25rem", minWidth: 0 }}>
+                    <h3
+                      style={{
+                        fontFamily: arabicTitle ? "var(--font-alkanz)" : "var(--font-heading)",
+                        fontSize: arabicTitle ? "1.3rem" : "0.9375rem",
+                        color: "var(--color-navy)",
+                        direction: arabicTitle ? "rtl" : "ltr",
+                        lineHeight: arabicTitle ? 2 : 1.3,
+                        marginBottom: "0.25rem",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {task.title}
+                    </h3>
                     {task.description && (
-                      <p style={{ fontFamily: "var(--font-body)", fontSize: "0.875rem", color: "var(--color-muted)", fontStyle: "italic" }}>
+                      <p style={{ fontFamily: "var(--font-body)", fontSize: "0.875rem", color: "var(--color-muted)", fontStyle: "italic", marginTop: "0.125rem" }}>
                         {task.description}
                       </p>
                     )}
+                    <p style={{ fontFamily: "var(--font-body)", fontSize: "0.78rem", color: "var(--color-muted)", marginTop: "0.375rem" }}>
+                      Due {new Date(task.submission_date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+                    </p>
                   </div>
-                  <div style={{ padding: "1rem", display: "flex", alignItems: "center" }}>
+
+                  {/* Status badge + action button — stacked in right column */}
+                  <div
+                    style={{
+                      padding: "0.875rem 1rem",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-end",
+                      justifyContent: "center",
+                      gap: "0.5rem",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {completed ? (
+                      <Badge variant="green">✓ {submission!.score}/{submission!.total_questions}</Badge>
+                    ) : overdue ? (
+                      <Badge variant="red">Overdue</Badge>
+                    ) : (
+                      <Badge variant="gold">Pending</Badge>
+                    )}
                     <Link href={`/student/classes/${classId}/subjects/${subjectId}/tasks/${task.id}`}>
                       <button
                         className={completed ? "btn-ghost" : "btn-primary"}
-                        style={{ whiteSpace: "nowrap" }}
+                        style={{ whiteSpace: "nowrap", padding: "0.4rem 1rem", fontSize: "0.8125rem" }}
                       >
                         {completed ? "Review" : "Open Task"}
                       </button>

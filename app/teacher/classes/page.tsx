@@ -7,6 +7,7 @@ import { Class } from "@/lib/types";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
+import Loader from "@/components/ui/Loader";
 
 export default function ClassesPage() {
   const [classes, setClasses] = useState<Class[]>([]);
@@ -37,9 +38,7 @@ export default function ClassesPage() {
       />
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: "3rem", color: "var(--color-muted)", fontFamily: "var(--font-body)", fontStyle: "italic" }}>
-          Loading classes…
-        </div>
+        <Loader />
       ) : classes.length === 0 ? (
         <EmptyState
           title="No classes yet"

@@ -61,7 +61,7 @@ Complete reference for the Dawoodi Bohra Community Madrasa Learning Management S
 
 ## Database Schema
 
-**File:** `supabase/schema.sql` — run in Supabase SQL Editor.
+**File:** `supabase/schema.sql` — run in Supabase SQL Editor (idempotent, safe to re-run).
 
 Tables:
 - `classes` — id, name, description, teacher_id (→ auth.users), created_at
@@ -70,22 +70,33 @@ Tables:
 - `questions` — id, task_id (→ tasks), question_text, option_a/b/c/d, correct_option (a/b/c/d), order_index
 - `student_submissions` — id, task_id, student_id (→ auth.users), submitted_at, score, total_questions, completed; UNIQUE(task_id, student_id)
 - `student_answers` — id, submission_id, question_id, selected_option, is_correct; UNIQUE(submission_id, question_id)
+- `class_enrollments` — id, class_id (→ classes, CASCADE), student_id (→ auth.users, CASCADE), **student_email** (TEXT, stored denormalized for display), enrolled_at; UNIQUE(class_id, student_id)
 
 RLS is enabled on all tables with permissive "allow all" policies (prototype mode).
+
+**Cascade deletes:** deleting a class cascades → subjects → tasks → questions, student_submissions → student_answers, class_enrollments. Everything is cleaned up automatically.
 
 ---
 
 ## Authentication
 
-**No login flow** — two test accounts are accessed by hardcoded UUIDs in env vars.
+**No login flow** — three test accounts accessed by hardcoded UUIDs in env vars.
 
 Seed script: `supabase/seed.ts` (or `npm run setup` for all-in-one)
-- Creates `teacher@gmail.com` (password: `Madrasa@Teacher1`) and `student@gmail.com` (password: `Madrasa@Student1`) via Supabase Auth Admin API
-- **Already run** — UUIDs written to `.env.local`
+- Creates `teacher@gmail.com`, `student@gmail.com`, `student2@gmail.com` via Supabase Auth Admin API
+- Writes all UUIDs to `.env.local` automatically on run
 
 **Known UUIDs (project `pwlzdvbyygsdjimdcyfa`):**
 - Teacher: `cc4d012c-f252-4f04-a5e6-3e552d90d6ff`
-- Student: `76b03524-0207-4923-8150-b17faf811126`
+- Student 1: `76b03524-0207-4923-8150-b17faf811126`
+- Student 2 (unenrolled): `7409446d-a758-49e5-826c-a7008634977c`
+
+**Passwords:**
+- teacher@gmail.com → `Madrasa@Teacher1`
+- student@gmail.com → `Madrasa@Student1`
+- student2@gmail.com → `Madrasa@Student2`
+
+**student2 is intentionally not enrolled in any class** — used to test that the student portal correctly hides classes until the teacher enrolls them via the Students tab.
 
 **Schema note:** `setup.ts` / `seed.ts` use the service role key which can call the Auth Admin API but **cannot execute DDL** (CREATE TABLE). Schema must be pasted into the Supabase SQL Editor manually:
 → https://supabase.com/dashboard/project/pwlzdvbyygsdjimdcyfa/sql/new
@@ -99,9 +110,10 @@ All values are populated. Project ref: `pwlzdvbyygsdjimdcyfa`.
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://pwlzdvbyygsdjimdcyfa.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<filled>
-SUPABASE_SERVICE_ROLE_KEY=<filled>        # seed/setup scripts only — not exposed to browser
+SUPABASE_SERVICE_ROLE_KEY=<filled>        # seed/setup scripts + /api/find-student only
 NEXT_PUBLIC_TEACHER_ID=cc4d012c-f252-4f04-a5e6-3e552d90d6ff
 NEXT_PUBLIC_STUDENT_ID=76b03524-0207-4923-8150-b17faf811126
+NEXT_PUBLIC_STUDENT2_ID=7409446d-a758-49e5-826c-a7008634977c
 ```
 
 ---
@@ -110,82 +122,117 @@ NEXT_PUBLIC_STUDENT_ID=76b03524-0207-4923-8150-b17faf811126
 
 ```
 madrasa/
-├── .env.local                           # env vars (fill in after setup)
-├── MEMORY.md                            # this file
+├── .env.local
+├── MEMORY.md                              # this file
 ├── lib/
-│   ├── supabase.ts                      # Supabase client, TEACHER_ID, STUDENT_ID, getDriveEmbedUrl()
-│   └── types.ts                         # Class, Subject, Task, Question, StudentSubmission, StudentAnswer
+│   ├── supabase.ts                        # Supabase client, TEACHER_ID, STUDENT_ID, getDriveEmbedUrl()
+│   └── types.ts                           # Class, Subject, Task, Question, StudentSubmission, StudentAnswer, ClassEnrollment
 ├── supabase/
-│   ├── schema.sql                       # Run in Supabase SQL Editor (manual — DDL not executable via service role)
-│   ├── seed.ts                          # Creates test users via Supabase Auth Admin API
-│   └── setup.ts                         # Convenience wrapper: runs schema (tries Mgmt API) + seed in one command
+│   ├── schema.sql                         # Idempotent — run in Supabase SQL Editor
+│   ├── seed.ts                            # Creates/upserts all 3 test users, writes UUIDs to .env.local
+│   └── setup.ts                           # Convenience: tries schema via Mgmt API + runs seed
 ├── components/
-│   ├── ArabicText.tsx                   # ALKANZ font wrapper, RTL, configurable size
+│   ├── ArabicText.tsx                     # ALKANZ font wrapper, RTL
 │   ├── ui/
-│   │   ├── Button.tsx                   # Primary/Gold/Ghost/Danger variants
-│   │   ├── Badge.tsx                    # Gold/Blue/Green/Red pill badges
-│   │   ├── PageHeader.tsx               # Title + breadcrumbs + gold rule + optional action
-│   │   ├── PortalNav.tsx                # Sticky navbar (teacher/student role-aware)
-│   │   └── EmptyState.tsx              # Empty placeholder with optional CTA
+│   │   ├── Button.tsx                     # Primary/Gold/Ghost/Danger variants
+│   │   ├── Badge.tsx                      # Gold/Blue/Green/Red pill badges
+│   │   ├── PageHeader.tsx                 # Title + breadcrumbs + optional action
+│   │   ├── PortalNav.tsx                  # Sticky navbar (teacher/student role-aware)
+│   │   └── EmptyState.tsx                 # Empty placeholder with optional CTA
 │   ├── teacher/
-│   │   └── QuestionBuilder.tsx          # Dynamic question adder for task creation form
+│   │   └── QuestionBuilder.tsx            # Dynamic question adder for task creation form
 │   └── student/
-│       └── QuizPlayer.tsx               # One-at-a-time quiz with feedback + summary
+│       └── QuizPlayer.tsx                 # One-at-a-time quiz with feedback + summary
 ├── app/
-│   ├── globals.css                      # Full design system (fonts, tokens, utilities)
-│   ├── layout.tsx                       # Root layout (no fonts, just metadata)
-│   ├── page.tsx                         # Landing — portal selection (Teacher / Student)
+│   ├── globals.css                        # Full design system
+│   ├── layout.tsx                         # Root layout (Google Fonts via <link>)
+│   ├── page.tsx                           # Landing — Teacher / Student portal selector
+│   ├── api/
+│   │   └── find-student/route.ts          # POST {email} → {id, email} (uses service role key server-side)
 │   ├── teacher/
-│   │   ├── layout.tsx                   # Teacher layout wrapping PortalNav + page-container
-│   │   ├── page.tsx                     # Teacher dashboard (stats + classes grid)
+│   │   ├── layout.tsx                     # Teacher layout + PortalNav
+│   │   ├── page.tsx                       # Teacher dashboard (stats + classes grid)
 │   │   └── classes/
-│   │       ├── page.tsx                 # All classes list
-│   │       ├── new/page.tsx             # Create class form
+│   │       ├── page.tsx                   # All classes list
+│   │       ├── new/page.tsx               # Create class form
 │   │       └── [classId]/
-│   │           ├── page.tsx             # Class detail (subjects grid)
+│   │           ├── page.tsx               # Class detail — 3 tabs: Subjects / Students / Analytics
+│   │           ├── edit/page.tsx          # Edit class name + description
 │   │           └── subjects/
-│   │               ├── new/page.tsx     # Create subject form
+│   │               ├── new/page.tsx       # Create subject form
 │   │               └── [subjectId]/
-│   │                   ├── page.tsx     # Subject detail (tasks list)
+│   │                   ├── page.tsx       # Subject detail (tasks list)
 │   │                   └── tasks/
-│   │                       ├── new/page.tsx    # Create task form (details + question builder)
-│   │                       └── [taskId]/page.tsx  # Task detail (slide preview + questions)
+│   │                       ├── new/page.tsx       # Create task form (details + QuestionBuilder)
+│   │                       └── [taskId]/page.tsx  # Task detail — 2 tabs: Questions / Analytics; Delete button
 │   └── student/
-│       ├── layout.tsx                   # Student layout
-│       ├── page.tsx                     # Student dashboard (all classes grid)
+│       ├── layout.tsx                     # Student layout
+│       ├── page.tsx                       # Student dashboard — 2 tabs: My Classes / All Tasks; pending callout
 │       └── classes/
 │           └── [classId]/
-│               ├── page.tsx             # Class subjects
+│               ├── page.tsx               # Class subjects
 │               └── subjects/
 │                   └── [subjectId]/
-│                       ├── page.tsx     # Subject tasks (with submission status badges)
+│                       ├── page.tsx       # Subject tasks (with submission status badges)
 │                       └── tasks/
-│                           └── [taskId]/page.tsx  # Task page: slide embed + QuizPlayer
+│                           └── [taskId]/page.tsx  # Task: slide embed + QuizPlayer
 ```
 
 ---
 
 ## Key Implementation Notes
 
-1. **Google Drive embed:** `getDriveEmbedUrl()` in `lib/supabase.ts` extracts the document ID from any Google Slides URL and builds the embed URL (`/embed?start=false&loop=false`). The presentation iframe is collapsible on the student task page.
+1. **Google Drive embed:** `getDriveEmbedUrl()` in `lib/supabase.ts` extracts the document ID from any Google Slides URL and builds the embed URL.
 
-2. **Quiz flow:** `QuizPlayer` shows questions one-at-a-time. After selecting an answer, immediate color feedback is shown (green correct / red shake incorrect). A "Next" button advances. After the last question, `onComplete` is called → submission saved to Supabase → summary screen rendered inline (no separate route).
+2. **Quiz flow:** `QuizPlayer` shows questions one-at-a-time. Immediate color feedback on answer. After last question → `onComplete(answers, score)` → submission saved → summary screen inline.
 
-3. **Student task page** has a collapsible Google Slides viewer (full 16:9 iframe) at the top and the quiz section below. Students can hide the slides after reviewing.
+3. **Student task page** has collapsible Google Slides viewer + quiz section below. Students can hide the slides after reviewing.
 
-4. **Submission upsert:** `student_submissions` uses `UNIQUE(task_id, student_id)` so re-visiting a completed task simply shows the existing score without overwriting.
+4. **Submission upsert:** `student_submissions` uses `UNIQUE(task_id, student_id)` — re-visiting a completed task shows the existing score without overwriting.
 
-5. **Lisan ud Dawat text:** The `ArabicText` component applies `font-family: ALKANZ`, `direction: rtl`, `text-align: right`, and generous `line-height: 2`. All question text and answer options in both teacher (QuestionBuilder) and student (QuizPlayer) views render with this treatment.
+5. **Lisan ud Dawat text:** `ArabicText` applies ALKANZ font, RTL, generous line-height. Used in QuestionBuilder, QuizPlayer, and task detail views.
 
-6. **No auth routing:** `/teacher/*` routes assume `NEXT_PUBLIC_TEACHER_ID` is the active user. `/student/*` routes assume `NEXT_PUBLIC_STUDENT_ID`. No session, no middleware.
+6. **No auth routing:** `/teacher/*` reads `NEXT_PUBLIC_TEACHER_ID`. `/student/*` reads `NEXT_PUBLIC_STUDENT_ID`. No session/middleware.
+
+7. **Class enrollments:** stored in `class_enrollments`. `student_email` is stored denormalized (populated at enroll time via `/api/find-student`) so the teacher can display student emails without needing Auth Admin API access from the browser. Adding a student: teacher types email → API route looks up user → UUID + email inserted into `class_enrollments`.
+
+8. **Student visibility:** students only see classes they are enrolled in (filtered by `class_enrollments` on student dashboard). Un-enrolled students (like student2) see an empty dashboard.
+
+9. **Teacher class detail tabs:**
+   - *Subjects* — grid of subjects with Open Subject links; + New Subject button appears here only
+   - *Students* — enrolled list with Remove button; Add Student by email form at top
+   - *Analytics* — summary cards (students, tasks, completion rate, avg score); task performance table; student performance table with progress bars
+
+10. **Task detail tabs:**
+    - *Questions* — read-only view of all MCQ questions with correct answers highlighted in gold
+    - *Analytics* — summary cards (enrolled, submitted, missed, avg score); per-question breakdown with correct/wrong counts and progress bar; questions with <50% correct marked as "Problematic"
+
+11. **Teacher actions:**
+    - Edit class → `/teacher/classes/[classId]/edit`
+    - Delete class → inline confirm → Supabase delete cascades everything (subjects, tasks, questions, submissions, answers, enrollments)
+    - Delete task → inline confirm on task detail page → redirects to subject page
+
+12. **Student dashboard features:**
+    - Pending tasks callout at the top — shows up to 4 pending tasks with direct links; "+N more" button switches to Tasks tab
+    - Tabs: My Classes (filtered by enrollment) | All Tasks (all tasks across enrolled classes)
+    - All Tasks filter pills: All / Pending / Missed / Completed
+    - Each task row shows: title, class+subject+due date, status badge, score (if completed), "Open Task" or "View Results" link
+
+---
+
+## API Routes
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/find-student` | POST `{email}` | Looks up user by email via Auth Admin API (uses SUPABASE_SERVICE_ROLE_KEY server-side). Returns `{id, email}` or 404. Used by teacher's "Add Student" form. |
 
 ---
 
 ## Setup Status
 
 ✅ Supabase project created — `pwlzdvbyygsdjimdcyfa`
-✅ `.env.local` fully populated (URL, anon key, service role key, teacher ID, student ID)
-✅ Auth users created (`teacher@gmail.com`, `student@gmail.com`)
+✅ `.env.local` fully populated (URL, anon key, service role key, teacher ID, student IDs)
+✅ Auth users created (`teacher@gmail.com`, `student@gmail.com`, `student2@gmail.com`)
 ⏳ **Schema SQL still needs to be run** — paste `supabase/schema.sql` into:
    https://supabase.com/dashboard/project/pwlzdvbyygsdjimdcyfa/sql/new
 ✅ After schema is run → `npm run dev` → http://localhost:3000
@@ -196,5 +243,5 @@ madrasa/
 |--------|---------|
 | `npm run dev` | Start dev server |
 | `npm run build` | Production build |
-| `npm run seed` | Create/re-create test auth users |
-| `npm run setup` | All-in-one: attempts schema + creates users |
+| `npm run seed` | Create/re-create all 3 test auth users, write UUIDs to .env.local |
+| `npm run setup` | All-in-one: attempts schema via Mgmt API + runs seed |

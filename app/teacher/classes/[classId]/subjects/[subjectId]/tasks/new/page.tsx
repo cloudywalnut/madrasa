@@ -133,7 +133,40 @@ export default function NewTaskPage() {
             </div>
 
             <div className="mb-4">
-              <label className="madrasa-label">Google Drive Slides Link *</label>
+              <label className="madrasa-label">Google Slides Presentation Link *</label>
+              <div
+                style={{
+                  background: "var(--color-gold-mist)",
+                  border: "1px solid var(--color-gold-pale)",
+                  borderRadius: "0.5rem",
+                  padding: "0.75rem 1rem",
+                  marginBottom: "0.625rem",
+                  lineHeight: 1.6,
+                }}
+              >
+                <p style={{ fontFamily: "var(--font-heading)", fontSize: "0.72rem", letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--color-gold)", marginBottom: "0.375rem" }}>
+                  How to get the correct link
+                </p>
+                <ol
+                  style={{
+                    fontFamily: "var(--font-body)",
+                    fontSize: "0.875rem",
+                    color: "var(--color-navy)",
+                    paddingLeft: "1.25rem",
+                    margin: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.2rem",
+                  }}
+                >
+                  <li>Open your presentation in <strong>Google Slides</strong></li>
+                  <li>Click <strong>Share</strong> (top-right) → change access to <strong>&ldquo;Anyone with the link&rdquo;</strong></li>
+                  <li>Click <strong>Copy link</strong> and paste it below</li>
+                </ol>
+                <p style={{ fontFamily: "var(--font-body)", fontSize: "0.8rem", color: "var(--color-muted)", fontStyle: "italic", marginTop: "0.5rem", marginBottom: 0 }}>
+                  Students will see the slides embedded inside the quiz page before answering.
+                </p>
+              </div>
               <input
                 type="url"
                 className="madrasa-input"
@@ -141,9 +174,6 @@ export default function NewTaskPage() {
                 value={driveLink}
                 onChange={(e) => setDriveLink(e.target.value)}
               />
-              <p style={{ marginTop: "0.35rem", fontFamily: "var(--font-body)", fontSize: "0.8125rem", color: "var(--color-muted)", fontStyle: "italic" }}>
-                Paste the share link from Google Slides. Make sure sharing is set to "Anyone with the link".
-              </p>
             </div>
 
             <div className="mb-2">

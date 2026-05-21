@@ -55,4 +55,12 @@ export interface StudentAnswer {
   is_correct: boolean;
 }
 
+export interface ClassEnrollment {
+  id: string;
+  class_id: string;
+  student_id: string;
+  student_email: string;
+  enrolled_at: string;
+}
+
 export type AnswerOption = 'a' | 'b' | 'c' | 'd';

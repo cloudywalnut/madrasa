@@ -8,6 +8,7 @@ import { Class, Subject } from "@/lib/types";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 import Badge from "@/components/ui/Badge";
+import Loader from "@/components/ui/Loader";
 
 export default function StudentClassPage() {
   const { classId } = useParams<{ classId: string }>();
@@ -26,7 +27,7 @@ export default function StudentClassPage() {
     });
   }, [classId]);
 
-  if (loading) return <div style={{ padding: "4rem", textAlign: "center", color: "var(--color-muted)", fontFamily: "var(--font-body)", fontStyle: "italic" }}>Loading…</div>;
+  if (loading) return <Loader />;
   if (!cls) return null;
 
   return (

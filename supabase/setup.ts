@@ -102,12 +102,22 @@ CREATE TABLE IF NOT EXISTS student_answers (
   UNIQUE(submission_id, question_id)
 );
 
+CREATE TABLE IF NOT EXISTS class_enrollments (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  class_id      UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+  student_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  student_email TEXT NOT NULL,
+  enrolled_at   TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(class_id, student_id)
+);
+
 ALTER TABLE classes             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subjects            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tasks               ENABLE ROW LEVEL SECURITY;
 ALTER TABLE questions           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE student_submissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE student_answers     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE class_enrollments   ENABLE ROW LEVEL SECURITY;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='classes' AND policyname='allow_all_classes') THEN
@@ -127,6 +137,9 @@ DO $$ BEGIN
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='student_answers' AND policyname='allow_all_student_answers') THEN
     CREATE POLICY allow_all_student_answers ON student_answers FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='class_enrollments' AND policyname='allow_all_class_enrollments') THEN
+    CREATE POLICY allow_all_class_enrollments ON class_enrollments FOR ALL USING (true) WITH CHECK (true);
   END IF;
 END $$;
 `;
@@ -191,16 +204,25 @@ async function createUsers() {
   }
 
   console.log('👤  Creating test users…');
-  const teacherId = await upsertUser('teacher@gmail.com', 'Madrasa@Teacher1', 'Teacher');
-  const studentId = await upsertUser('student@gmail.com', 'Madrasa@Student1', 'Student');
-  return { teacherId, studentId };
+  const teacherId  = await upsertUser('teacher@gmail.com',  'Madrasa@Teacher1', 'Teacher');
+  const studentId  = await upsertUser('student@gmail.com',  'Madrasa@Student1', 'Student 1');
+  const student2Id = await upsertUser('student2@gmail.com', 'Madrasa@Student2', 'Student 2 (unenrolled)');
+  return { teacherId, studentId, student2Id };
 }
 
 // ── Update .env.local with user IDs ──────────────────────────────
-function updateEnv(teacherId: string, studentId: string) {
+function updateEnv(teacherId: string, studentId: string, student2Id: string) {
   let content = fs.readFileSync(envPath, 'utf-8');
-  content = content.replace(/NEXT_PUBLIC_TEACHER_ID=.*/,  `NEXT_PUBLIC_TEACHER_ID=${teacherId}`);
-  content = content.replace(/NEXT_PUBLIC_STUDENT_ID=.*/,  `NEXT_PUBLIC_STUDENT_ID=${studentId}`);
+  const set = (key: string, val: string) => {
+    if (content.includes(`${key}=`)) {
+      content = content.replace(new RegExp(`${key}=.*`), `${key}=${val}`);
+    } else {
+      content += `\n${key}=${val}`;
+    }
+  };
+  set('NEXT_PUBLIC_TEACHER_ID',  teacherId);
+  set('NEXT_PUBLIC_STUDENT_ID',  studentId);
+  set('NEXT_PUBLIC_STUDENT2_ID', student2Id);
   fs.writeFileSync(envPath, content, 'utf-8');
   console.log('\n✅  .env.local updated with user IDs.');
 }
@@ -212,13 +234,15 @@ async function main() {
   console.log(`   URL:     ${supabaseUrl}\n`);
 
   await runSchema();
-  const { teacherId, studentId } = await createUsers();
-  updateEnv(teacherId, studentId);
+  const { teacherId, studentId, student2Id } = await createUsers();
+  updateEnv(teacherId, studentId, student2Id);
 
   console.log('\n── Complete ──────────────────────────────────────────');
-  console.log(`   NEXT_PUBLIC_TEACHER_ID = ${teacherId}`);
-  console.log(`   NEXT_PUBLIC_STUDENT_ID = ${studentId}`);
-  console.log('\n   Run: npm run dev\n');
+  console.log(`   NEXT_PUBLIC_TEACHER_ID  = ${teacherId}`);
+  console.log(`   NEXT_PUBLIC_STUDENT_ID  = ${studentId}`);
+  console.log(`   NEXT_PUBLIC_STUDENT2_ID = ${student2Id}`);
+  console.log('\n   student2@gmail.com is intentionally NOT enrolled in any class.');
+  console.log('   Run: npm run dev\n');
 }
 
 main().catch((err) => {

@@ -7,6 +7,7 @@ import { Class } from "@/lib/types";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
+import Loader from "@/components/ui/Loader";
 
 export default function TeacherDashboard() {
   const [classes, setClasses] = useState<Class[]>([]);
@@ -99,7 +100,7 @@ export default function TeacherDashboard() {
         </div>
 
         {loading ? (
-          <ClassesSkeleton />
+          <Loader />
         ) : classes.length === 0 ? (
           <EmptyState
             title="No classes yet"
