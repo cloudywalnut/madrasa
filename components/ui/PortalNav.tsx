@@ -18,7 +18,7 @@ export default function PortalNav({ role, links }: PortalNavProps) {
 
   return (
     <nav className="madrasa-nav sticky top-0 z-50">
-      <div className="max-w-screen-xl mx-auto px-4 sm:px-6">
+      <div className="w-full px-4 sm:px-6 lg:px-8 2xl:px-12">
         <div className="flex items-center justify-between h-16">
           {/* Brand */}
           <Link
