@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Class, Subject, ClassEnrollment, Task, StudentSubmission } from "@/lib/types";
+import { isArabic } from "@/lib/arabic";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
@@ -196,26 +197,18 @@ export default function ClassDetailPage() {
           { label: cls.name },
         ]}
         action={
-          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
-            <Link href={`/teacher/classes/${classId}/edit`}>
-              <Button variant="ghost">Edit Class</Button>
-            </Link>
-            {!deleteConfirm ? (
-              <Button variant="danger" onClick={() => setDeleteConfirm(true)}>Delete Class</Button>
-            ) : (
-              <>
-                <span style={{ fontFamily: "var(--font-body)", fontSize: "0.875rem", color: "#B91C1C", whiteSpace: "nowrap" }}>
-                  Delete everything?
-                </span>
-                <Button variant="danger" onClick={handleDeleteClass} disabled={deleteLoading}>
-                  {deleteLoading ? "Deleting…" : "Yes, Delete All"}
-                </Button>
-                <Button variant="ghost" onClick={() => setDeleteConfirm(false)}>Cancel</Button>
-              </>
-            )}
+          <div className="flex flex-col gap-2 w-full md:flex-row md:w-auto md:flex-wrap md:items-center md:gap-2">
+            <div className="flex gap-2 w-full md:w-auto">
+              <Link href={`/teacher/classes/${classId}/edit`} className="flex-1 md:flex-none">
+                <Button variant="ghost" className="w-full">Edit Class</Button>
+              </Link>
+              <div className="flex-1 md:flex-none">
+                <Button variant="danger" onClick={() => setDeleteConfirm(true)} className="w-full">Delete Class</Button>
+              </div>
+            </div>
             {tab === "subjects" && (
-              <Link href={`/teacher/classes/${classId}/subjects/new`}>
-                <Button variant="gold">+ New Subject</Button>
+              <Link href={`/teacher/classes/${classId}/subjects/new`} className="block w-full md:inline md:w-auto">
+                <Button variant="gold" className="w-full justify-center md:w-auto">+ New Subject</Button>
               </Link>
             )}
           </div>
@@ -306,6 +299,67 @@ export default function ClassDetailPage() {
           />
         )
       )}
+
+      {/* ── Delete confirmation modal ── */}
+      {deleteConfirm && (
+        <div
+          onClick={() => !deleteLoading && setDeleteConfirm(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 50,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "1rem",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="madrasa-card animate-fade-in-up"
+            style={{ width: "100%", maxWidth: "420px", padding: "2rem", textAlign: "center" }}
+          >
+            <div style={{
+              width: "48px", height: "48px", borderRadius: "50%", margin: "0 auto 1.25rem",
+              background: "rgba(185,28,28,0.1)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B91C1C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <path d="M10 11v6M14 11v6" />
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+              </svg>
+            </div>
+            <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "1.125rem", color: "var(--color-navy)", marginBottom: "0.5rem", letterSpacing: "0.04em" }}>
+              Delete Class
+            </h2>
+            <p style={{ fontFamily: "var(--font-body)", fontSize: "0.9375rem", color: "var(--color-muted)", marginBottom: "0.25rem" }}>
+              Are you sure you want to delete
+            </p>
+            <p style={{ fontFamily: "var(--font-heading)", fontSize: "1rem", color: "var(--color-navy)", marginBottom: "1.5rem" }}>
+              &ldquo;{cls.name}&rdquo;?
+            </p>
+            <p style={{ fontFamily: "var(--font-body)", fontSize: "0.8125rem", color: "#B91C1C", marginBottom: "1.75rem" }}>
+              This will permanently remove the class, all subjects, and student data.
+            </p>
+            <div style={{ display: "flex", gap: "0.75rem" }}>
+              <Button
+                variant="ghost"
+                onClick={() => setDeleteConfirm(false)}
+                disabled={deleteLoading}
+                style={{ flex: 1 }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                onClick={handleDeleteClass}
+                disabled={deleteLoading}
+                style={{ flex: 1 }}
+              >
+                {deleteLoading ? "Deleting…" : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -334,6 +388,8 @@ function StudentsTab({
   onAddStudent: (e: React.FormEvent) => void;
   onRemoveStudent: (id: string) => void;
 }) {
+  const [removeConfirmId, setRemoveConfirmId] = useState<string | null>(null);
+  const [removeLoading, setRemoveLoading] = useState(false);
   const [allStudents, setAllStudents] = useState<AllStudent[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -405,7 +461,7 @@ function StudentsTab({
                   <Link href={`/teacher/classes/${classId}/students/${enrollment.student_id}`}>
                     <Button variant="ghost" style={{ padding: "0.35rem 0.875rem", fontSize: "0.78rem" }}>Profile</Button>
                   </Link>
-                  <Button variant="danger" onClick={() => onRemoveStudent(enrollment.id)} style={{ padding: "0.35rem 0.875rem", fontSize: "0.78rem" }}>
+                  <Button variant="danger" onClick={() => setRemoveConfirmId(enrollment.id)} style={{ padding: "0.35rem 0.875rem", fontSize: "0.78rem" }}>
                     Remove
                   </Button>
                 </div>
@@ -478,6 +534,69 @@ function StudentsTab({
           </div>
         )}
       </div>
+
+      {/* ── Remove student confirmation modal ── */}
+      {removeConfirmId && (() => {
+        const target = enrollments.find((e) => e.id === removeConfirmId);
+        return (
+          <div
+            onClick={() => !removeLoading && setRemoveConfirmId(null)}
+            style={{
+              position: "fixed", inset: 0, zIndex: 50,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              padding: "1rem",
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="madrasa-card animate-fade-in-up"
+              style={{ width: "100%", maxWidth: "420px", padding: "2rem", textAlign: "center" }}
+            >
+              <div style={{
+                width: "48px", height: "48px", borderRadius: "50%", margin: "0 auto 1.25rem",
+                background: "rgba(185,28,28,0.1)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B91C1C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <line x1="23" y1="11" x2="17" y2="11" />
+                </svg>
+              </div>
+              <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "1.125rem", color: "var(--color-navy)", marginBottom: "0.5rem", letterSpacing: "0.04em" }}>
+                Remove Student
+              </h2>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: "0.9375rem", color: "var(--color-muted)", marginBottom: "0.25rem" }}>
+                Remove from this class:
+              </p>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: "1rem", color: "var(--color-navy)", marginBottom: "1.5rem" }}>
+                {target?.student_email}
+              </p>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: "0.8125rem", color: "#B91C1C", marginBottom: "1.75rem" }}>
+                Their submission history will be preserved, but they will lose access to this class.
+              </p>
+              <div style={{ display: "flex", gap: "0.75rem" }}>
+                <Button variant="ghost" onClick={() => setRemoveConfirmId(null)} disabled={removeLoading} style={{ flex: 1 }}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="danger"
+                  disabled={removeLoading}
+                  onClick={async () => {
+                    setRemoveLoading(true);
+                    onRemoveStudent(removeConfirmId);
+                    setRemoveConfirmId(null);
+                    setRemoveLoading(false);
+                  }}
+                  style={{ flex: 1 }}
+                >
+                  {removeLoading ? "Removing…" : "Remove"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -547,18 +666,20 @@ function QuickAddRow({
 
 // ── Subject card ───────────────────────────────────────────────────────────────
 function SubjectCard({ subject, classId, delay }: { subject: Subject; classId: string; delay: number }) {
+  const arabicName = isArabic(subject.name);
+  const arabicDesc = subject.description ? isArabic(subject.description) : false;
   return (
     <div className="madrasa-card animate-fade-in-up overflow-hidden" style={{ animationDelay: `${delay}s` }}>
       <div className="madrasa-card-header">
         <div className="relative z-10">
-          <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "1rem", color: "white", letterSpacing: "0.05em" }}>
+          <h3 style={{ fontFamily: arabicName ? "var(--font-alkanz)" : "var(--font-heading)", fontSize: arabicName ? "1.25rem" : "1rem", color: "white", letterSpacing: arabicName ? 0 : "0.05em", direction: arabicName ? "rtl" : "ltr", lineHeight: arabicName ? 1.8 : undefined }}>
             {subject.name}
           </h3>
         </div>
       </div>
       <div style={{ padding: "1rem 1.25rem" }}>
         {subject.description && (
-          <p style={{ fontFamily: "var(--font-body)", fontSize: "0.9375rem", color: "var(--color-muted)", marginBottom: "1rem", lineHeight: 1.6 }}>
+          <p style={{ fontFamily: arabicDesc ? "var(--font-alkanz)" : "var(--font-body)", fontSize: arabicDesc ? "1.1rem" : "0.9375rem", color: "var(--color-muted)", marginBottom: "1rem", lineHeight: arabicDesc ? 1.9 : 1.6, direction: arabicDesc ? "rtl" : "ltr" }}>
             {subject.description}
           </p>
         )}

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase, TEACHER_ID } from "@/lib/supabase";
 import { Class } from "@/lib/types";
+import { isArabic } from "@/lib/arabic";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
@@ -124,6 +125,8 @@ export default function TeacherDashboard() {
 }
 
 function ClassCard({ cls, delay }: { cls: Class; delay: number }) {
+  const arabicName = isArabic(cls.name);
+  const arabicDesc = cls.description ? isArabic(cls.description) : false;
   return (
     <div
       className="madrasa-card animate-fade-in-up overflow-hidden"
@@ -133,11 +136,13 @@ function ClassCard({ cls, delay }: { cls: Class; delay: number }) {
         <div className="relative z-10">
           <h3
             style={{
-              fontFamily: "var(--font-heading)",
-              fontSize: "1rem",
-              letterSpacing: "0.05em",
+              fontFamily: arabicName ? "var(--font-alkanz)" : "var(--font-heading)",
+              fontSize: arabicName ? "1.25rem" : "1rem",
+              letterSpacing: arabicName ? 0 : "0.05em",
               color: "white",
               marginBottom: "0.25rem",
+              direction: arabicName ? "rtl" : "ltr",
+              lineHeight: arabicName ? 1.8 : undefined,
             }}
           >
             {cls.name}
@@ -162,11 +167,12 @@ function ClassCard({ cls, delay }: { cls: Class; delay: number }) {
         {cls.description && (
           <p
             style={{
-              fontFamily: "var(--font-body)",
-              fontSize: "0.9375rem",
+              fontFamily: arabicDesc ? "var(--font-alkanz)" : "var(--font-body)",
+              fontSize: arabicDesc ? "1.1rem" : "0.9375rem",
               color: "var(--color-muted)",
               marginBottom: "1rem",
-              lineHeight: 1.6,
+              lineHeight: arabicDesc ? 1.9 : 1.6,
+              direction: arabicDesc ? "rtl" : "ltr",
             }}
           >
             {cls.description}

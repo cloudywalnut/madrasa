@@ -1,3 +1,5 @@
+import { isArabic } from "@/lib/arabic";
+
 interface PageHeaderProps {
   title: string;
   subtitle?: string;
@@ -6,6 +8,8 @@ interface PageHeaderProps {
 }
 
 export default function PageHeader({ title, subtitle, breadcrumbs, action }: PageHeaderProps) {
+  const arabicTitle = isArabic(title);
+  const arabicSubtitle = subtitle ? isArabic(subtitle) : false;
   return (
     <div className="mb-8">
       {breadcrumbs && breadcrumbs.length > 0 && (
@@ -28,11 +32,12 @@ export default function PageHeader({ title, subtitle, breadcrumbs, action }: Pag
         <div>
           <h1
             style={{
-              fontFamily: "var(--font-heading)",
-              fontSize: "clamp(1.5rem, 4vw, 2rem)",
+              fontFamily: arabicTitle ? "var(--font-alkanz)" : "var(--font-heading)",
+              fontSize: arabicTitle ? "clamp(1.75rem, 4vw, 2.25rem)" : "clamp(1.5rem, 4vw, 2rem)",
               color: "var(--color-navy)",
-              letterSpacing: "0.02em",
-              lineHeight: 1.2,
+              letterSpacing: arabicTitle ? 0 : "0.02em",
+              lineHeight: arabicTitle ? 1.8 : 1.2,
+              direction: arabicTitle ? "rtl" : "ltr",
             }}
           >
             {title}
@@ -41,17 +46,23 @@ export default function PageHeader({ title, subtitle, breadcrumbs, action }: Pag
             <p
               className="mt-1"
               style={{
-                fontFamily: "var(--font-body)",
-                fontSize: "1rem",
+                fontFamily: arabicSubtitle ? "var(--font-alkanz)" : "var(--font-body)",
+                fontSize: arabicSubtitle ? "1.1rem" : "1rem",
                 color: "var(--color-muted)",
-                fontStyle: "italic",
+                fontStyle: arabicSubtitle ? "normal" : "italic",
+                direction: arabicSubtitle ? "rtl" : "ltr",
+                lineHeight: arabicSubtitle ? 1.8 : undefined,
               }}
             >
               {subtitle}
             </p>
           )}
         </div>
-        {action && <div className="shrink-0">{action}</div>}
+        {action && (
+          <div className="shrink-0 w-full md:w-auto">
+            {action}
+          </div>
+        )}
       </div>
       {/* Gold rule */}
       <div

@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Class, Subject } from "@/lib/types";
+import { isArabic } from "@/lib/arabic";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 import Badge from "@/components/ui/Badge";
@@ -49,7 +50,10 @@ export default function StudentClassPage() {
         <EmptyState title="No subjects yet" description="Your teacher hasn't added any subjects to this class yet." />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {subjects.map((sub, i) => (
+          {subjects.map((sub, i) => {
+            const arabicName = isArabic(sub.name);
+            const arabicDesc = sub.description ? isArabic(sub.description) : false;
+            return (
             <Link
               key={sub.id}
               href={`/student/classes/${classId}/subjects/${sub.id}`}
@@ -59,14 +63,14 @@ export default function StudentClassPage() {
               <div className="madrasa-card overflow-hidden h-full">
                 <div className="madrasa-card-header">
                   <div className="relative z-10">
-                    <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "1rem", color: "white", letterSpacing: "0.04em" }}>
+                    <h3 style={{ fontFamily: arabicName ? "var(--font-alkanz)" : "var(--font-heading)", fontSize: arabicName ? "1.25rem" : "1rem", color: "white", letterSpacing: arabicName ? 0 : "0.04em", direction: arabicName ? "rtl" : "ltr", lineHeight: arabicName ? 1.8 : undefined }}>
                       {sub.name}
                     </h3>
                   </div>
                 </div>
                 <div style={{ padding: "0.875rem 1.25rem" }}>
                   {sub.description && (
-                    <p style={{ fontFamily: "var(--font-body)", fontSize: "0.9375rem", color: "var(--color-muted)", lineHeight: 1.6, marginBottom: "0.625rem" }}>
+                    <p style={{ fontFamily: arabicDesc ? "var(--font-alkanz)" : "var(--font-body)", fontSize: arabicDesc ? "1.1rem" : "0.9375rem", color: "var(--color-muted)", lineHeight: arabicDesc ? 1.9 : 1.6, marginBottom: "0.625rem", direction: arabicDesc ? "rtl" : "ltr" }}>
                       {sub.description}
                     </p>
                   )}
@@ -76,7 +80,7 @@ export default function StudentClassPage() {
                 </div>
               </div>
             </Link>
-          ))}
+          );})}
         </div>
       )}
     </div>

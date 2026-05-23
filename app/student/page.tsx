@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase, STUDENT_ID } from "@/lib/supabase";
 import { Class, ClassEnrollment, Task, StudentSubmission } from "@/lib/types";
+import { isArabic } from "@/lib/arabic";
 import PageHeader from "@/components/ui/PageHeader";
 import Badge from "@/components/ui/Badge";
 import EmptyState from "@/components/ui/EmptyState";
@@ -167,9 +168,11 @@ export default function StudentDashboard() {
                     transition: "box-shadow 0.15s",
                   }}
                 >
-                  <p style={{ fontFamily: "var(--font-heading)", fontSize: "0.8125rem", color: "var(--color-navy)", marginBottom: "0.125rem" }}>
+                  {(() => { const arb = isArabic(et.task.title); return (
+                  <p style={{ fontFamily: arb ? "var(--font-alkanz)" : "var(--font-heading)", fontSize: arb ? "0.95rem" : "0.8125rem", color: "var(--color-navy)", marginBottom: "0.125rem", direction: arb ? "rtl" : "ltr" }}>
                     {et.task.title}
                   </p>
+                  ); })()}
                   <p style={{ fontFamily: "var(--font-body)", fontSize: "0.75rem", color: "var(--color-muted)" }}>
                     {et.cls?.name} · Due {new Date(et.task.submission_date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                   </p>
@@ -322,6 +325,7 @@ function TasksListView({ enrichedTasks }: { enrichedTasks: EnrichedTask[] }) {
 }
 
 function TaskRow({ et, delay }: { et: EnrichedTask; delay: number }) {
+  const arabicTitle = isArabic(et.task.title);
   const statusBadge = {
     completed: <Badge variant="green">Completed</Badge>,
     pending: <Badge variant="gold">Pending</Badge>,
@@ -354,7 +358,7 @@ function TaskRow({ et, delay }: { et: EnrichedTask; delay: number }) {
         <div style={{ flex: 1, padding: "1rem 1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.25rem" }}>
-              <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "0.9375rem", color: "var(--color-navy)" }}>
+              <h3 style={{ fontFamily: arabicTitle ? "var(--font-alkanz)" : "var(--font-heading)", fontSize: arabicTitle ? "1.1rem" : "0.9375rem", color: "var(--color-navy)", direction: arabicTitle ? "rtl" : "ltr", lineHeight: arabicTitle ? 1.8 : undefined }}>
                 {et.task.title}
               </h3>
               {statusBadge}
@@ -380,6 +384,8 @@ function TaskRow({ et, delay }: { et: EnrichedTask; delay: number }) {
 
 // ── Class card ─────────────────────────────────────────────────────────────────
 function StudentClassCard({ cls, delay }: { cls: Class; delay: number }) {
+  const arabicName = isArabic(cls.name);
+  const arabicDesc = cls.description ? isArabic(cls.description) : false;
   return (
     <Link
       href={`/student/classes/${cls.id}`}
@@ -389,14 +395,14 @@ function StudentClassCard({ cls, delay }: { cls: Class; delay: number }) {
       <div className="madrasa-card overflow-hidden h-full">
         <div className="madrasa-card-header">
           <div className="relative z-10">
-            <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "1.0625rem", color: "white", letterSpacing: "0.04em" }}>
+            <h3 style={{ fontFamily: arabicName ? "var(--font-alkanz)" : "var(--font-heading)", fontSize: arabicName ? "1.25rem" : "1.0625rem", color: "white", letterSpacing: arabicName ? 0 : "0.04em", direction: arabicName ? "rtl" : "ltr", lineHeight: arabicName ? 1.8 : undefined }}>
               {cls.name}
             </h3>
           </div>
         </div>
         <div style={{ padding: "1rem 1.25rem" }}>
           {cls.description && (
-            <p style={{ fontFamily: "var(--font-body)", fontSize: "0.9375rem", color: "var(--color-muted)", lineHeight: 1.6, marginBottom: "0.75rem" }}>
+            <p style={{ fontFamily: arabicDesc ? "var(--font-alkanz)" : "var(--font-body)", fontSize: arabicDesc ? "1.1rem" : "0.9375rem", color: "var(--color-muted)", lineHeight: arabicDesc ? 1.9 : 1.6, marginBottom: "0.75rem", direction: arabicDesc ? "rtl" : "ltr" }}>
               {cls.description}
             </p>
           )}
@@ -469,15 +475,11 @@ function RecentTaskActivity({ enrichedTasks }: { enrichedTasks: EnrichedTask[] }
                   }}
                 />
                 <div style={{ flex: 1, padding: "0.75rem 1rem", minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
-                    <span style={{ fontFamily: "var(--font-heading)", fontSize: "0.875rem", color: "var(--color-navy)", flex: 1 }}>
-                      {et.task.title}
-                    </span>
-                    {statusBadge}
-                    {et.submission?.score !== null && et.submission?.total_questions && et.status === "completed" && (
-                      <span className="badge-blue">{et.submission.score}/{et.submission.total_questions}</span>
-                    )}
-                  </div>
+                  {(() => { const arb = isArabic(et.task.title); return (
+                  <span style={{ fontFamily: arb ? "var(--font-alkanz)" : "var(--font-heading)", fontSize: arb ? "1rem" : "0.875rem", color: "var(--color-navy)", direction: arb ? "rtl" : "ltr", display: "block" }}>
+                    {et.task.title}
+                  </span>
+                  ); })()}
                   <p style={{ fontFamily: "var(--font-body)", fontSize: "0.775rem", color: "var(--color-muted)", marginTop: "0.125rem" }}>
                     {et.cls?.name} · {et.subjectName} ·{" "}
                     {et.status !== "completed" && daysLeft > 0
@@ -485,7 +487,13 @@ function RecentTaskActivity({ enrichedTasks }: { enrichedTasks: EnrichedTask[] }
                       : due.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                   </p>
                 </div>
-                <div style={{ padding: "0.5rem 0.875rem", flexShrink: 0 }}>
+                <div style={{ padding: "0.5rem 0.875rem", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.375rem" }}>
+                  <div style={{ display: "flex", gap: "0.375rem", alignItems: "center" }}>
+                    {statusBadge}
+                    {et.submission?.score !== null && et.submission?.total_questions && et.status === "completed" && (
+                      <span className="badge-blue">{et.submission.score}/{et.submission.total_questions}</span>
+                    )}
+                  </div>
                   <Link href={`/student/classes/${et.task.class_id}/subjects/${et.task.subject_id}/tasks/${et.task.id}`}>
                     <button className="btn-ghost" style={{ padding: "0.3rem 0.75rem", fontSize: "0.775rem" }}>
                       {et.status === "completed" ? "Review" : "Open"} →

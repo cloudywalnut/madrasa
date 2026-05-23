@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase, TEACHER_ID } from "@/lib/supabase";
 import { Class } from "@/lib/types";
+import { isArabic } from "@/lib/arabic";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
@@ -51,7 +52,10 @@ export default function ClassesPage() {
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {classes.map((cls, i) => (
+          {classes.map((cls, i) => {
+            const arabicName = isArabic(cls.name);
+            const arabicDesc = cls.description ? isArabic(cls.description) : false;
+            return (
             <div
               key={cls.id}
               className="madrasa-card animate-fade-in-up overflow-hidden"
@@ -59,7 +63,7 @@ export default function ClassesPage() {
             >
               <div className="madrasa-card-header">
                 <div className="relative z-10">
-                  <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "1rem", color: "white", letterSpacing: "0.05em" }}>
+                  <h3 style={{ fontFamily: arabicName ? "var(--font-alkanz)" : "var(--font-heading)", fontSize: arabicName ? "1.25rem" : "1rem", color: "white", letterSpacing: arabicName ? 0 : "0.05em", direction: arabicName ? "rtl" : "ltr", lineHeight: arabicName ? 1.8 : undefined }}>
                     {cls.name}
                   </h3>
                   <p style={{ fontFamily: "var(--font-body)", fontSize: "0.8125rem", color: "rgba(255,255,255,0.55)", fontStyle: "italic" }}>
@@ -69,7 +73,7 @@ export default function ClassesPage() {
               </div>
               <div style={{ padding: "1rem 1.25rem" }}>
                 {cls.description && (
-                  <p style={{ fontFamily: "var(--font-body)", fontSize: "0.9375rem", color: "var(--color-muted)", marginBottom: "1rem", lineHeight: 1.6 }}>
+                  <p style={{ fontFamily: arabicDesc ? "var(--font-alkanz)" : "var(--font-body)", fontSize: arabicDesc ? "1.1rem" : "0.9375rem", color: "var(--color-muted)", marginBottom: "1rem", lineHeight: arabicDesc ? 1.9 : 1.6, direction: arabicDesc ? "rtl" : "ltr" }}>
                     {cls.description}
                   </p>
                 )}
@@ -82,7 +86,7 @@ export default function ClassesPage() {
                 </div>
               </div>
             </div>
-          ))}
+          );})}
         </div>
       )}
     </div>

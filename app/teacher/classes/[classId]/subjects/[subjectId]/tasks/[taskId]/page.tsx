@@ -164,19 +164,7 @@ export default function TaskDetailPage() {
           { label: task.title },
         ]}
         action={
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
-            {!deleteConfirm ? (
-              <Button variant="danger" onClick={() => setDeleteConfirm(true)}>Delete Task</Button>
-            ) : (
-              <>
-                <span style={{ fontFamily: "var(--font-body)", fontSize: "0.875rem", color: "#B91C1C", whiteSpace: "nowrap" }}>Delete this task?</span>
-                <Button variant="danger" onClick={handleDeleteTask} disabled={deleteLoading}>
-                  {deleteLoading ? "Deleting…" : "Yes, Delete"}
-                </Button>
-                <Button variant="ghost" onClick={() => setDeleteConfirm(false)}>Cancel</Button>
-              </>
-            )}
-          </div>
+          <Button variant="danger" onClick={() => setDeleteConfirm(true)}>Delete Task</Button>
         }
       />
 
@@ -297,6 +285,57 @@ export default function TaskDetailPage() {
             onToggle={expandStudent}
           />
         )
+      )}
+
+      {/* ── Delete confirmation modal ── */}
+      {deleteConfirm && (
+        <div
+          onClick={() => !deleteLoading && setDeleteConfirm(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 50,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "1rem",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="madrasa-card animate-fade-in-up"
+            style={{ width: "100%", maxWidth: "420px", padding: "2rem", textAlign: "center" }}
+          >
+            <div style={{
+              width: "48px", height: "48px", borderRadius: "50%", margin: "0 auto 1.25rem",
+              background: "rgba(185,28,28,0.1)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B91C1C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <path d="M10 11v6M14 11v6" />
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+              </svg>
+            </div>
+            <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "1.125rem", color: "var(--color-navy)", marginBottom: "0.5rem", letterSpacing: "0.04em" }}>
+              Delete Task
+            </h2>
+            <p style={{ fontFamily: "var(--font-body)", fontSize: "0.9375rem", color: "var(--color-muted)", marginBottom: "0.25rem" }}>
+              Are you sure you want to delete
+            </p>
+            <p style={{ fontFamily: "var(--font-heading)", fontSize: "1rem", color: "var(--color-navy)", marginBottom: "1.5rem" }}>
+              &ldquo;{task.title}&rdquo;?
+            </p>
+            <p style={{ fontFamily: "var(--font-body)", fontSize: "0.8125rem", color: "#B91C1C", marginBottom: "1.75rem" }}>
+              This will permanently remove the task and all student submissions.
+            </p>
+            <div style={{ display: "flex", gap: "0.75rem" }}>
+              <Button variant="ghost" onClick={() => setDeleteConfirm(false)} disabled={deleteLoading} style={{ flex: 1 }}>
+                Cancel
+              </Button>
+              <Button variant="danger" onClick={handleDeleteTask} disabled={deleteLoading} style={{ flex: 1 }}>
+                {deleteLoading ? "Deleting…" : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
